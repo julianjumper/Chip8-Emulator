@@ -7,6 +7,8 @@
 // Define the dimensions of screen
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 320
+#define FRAME_RATE 60
+#define TIMER_HZ 60
 
 typedef struct Chip_8 {
     uint8_t memory[4096]; // 4KB memory
@@ -108,63 +110,123 @@ void close_graphics(SDL_Window *window, SDL_Renderer *renderer) {
 }
 
 void update_key_states(Chip_8 *chip, SDL_Event event) {
+    initialise_key_states(chip);
     if (event.type == SDL_KEYDOWN) {
         SDL_Keycode keyPressed = event.key.keysym.sym;
-        initialise_key_states(chip);
 
         switch (keyPressed) {
             case SDLK_1:
-                chip->V[0] = 1;
+                chip->key[0x0] = 1;
                 break;
             case SDLK_2:
-                chip->V[1] = 1;
+                chip->key[0x1] = 1;
                 break;
             case SDLK_3:
-                chip->V[2] = 1;
+                chip->key[0x2] = 1;
                 break;
             case SDLK_4:
-                chip->V[3] = 1;
+                chip->key[0x3] = 1;
                 break;
             case SDLK_q:
-                chip->V[4] = 1;
+                chip->key[0x4] = 1;
                 break;
             case SDLK_w:
-                chip->V[5] = 1;
+                chip->key[0x5] = 1;
                 break;
             case SDLK_e:
-                chip->V[6] = 1;
+                chip->key[0x6] = 1;
                 break;
             case SDLK_r:
-                chip->V[7] = 1;
+                chip->key[0x7] = 1;
                 break;
             case SDLK_a:
-                chip->V[8] = 1;
+                chip->key[0x8] = 1;
                 break;
             case SDLK_s:
-                chip->V[9] = 1;
+                chip->key[0x9] = 1;
                 break;
             case SDLK_d:
-                chip->V[10] = 1;
+                chip->key[0xA] = 1;
                 break;
             case SDLK_f:
-                chip->V[11] = 1;
+                chip->key[0xB] = 1;
                 break;
             case SDLK_y:
-                chip->V[12] = 1;
+                chip->key[0xC] = 1;
                 break;
             case SDLK_x:
-                chip->V[13] = 1;
+                chip->key[0xD] = 1;
                 break;
             case SDLK_c:
-                chip->V[14] = 1;
+                chip->key[0xE] = 1;
                 break;
             case SDLK_v:
-                chip->V[15] = 1;
+                chip->key[0xF] = 1;
                 break;
             default:
                 break;
         }
     }
+    else if (event.type == SDL_KEYUP) {
+        SDL_Keycode keyReleased = event.key.keysym.sym;
+
+        switch (keyReleased) {
+            case SDLK_1:
+                chip->key[0x0] = 0;
+                break;
+            case SDLK_2:
+                chip->key[0x1] = 0;
+                break;
+            case SDLK_3:
+                chip->key[0x2] = 0;
+                break;
+            case SDLK_4:
+                chip->key[0x3] = 0;
+                break;
+            case SDLK_q:
+                chip->key[0x4] = 0;
+                break;
+            case SDLK_w:
+                chip->key[0x5] = 0;
+                break;
+            case SDLK_e:
+                chip->key[0x6] = 0;
+                break;
+            case SDLK_r:
+                chip->key[0x7] = 0;
+                break;
+            case SDLK_a:
+                chip->key[0x8] = 0;
+                break;
+            case SDLK_s:
+                chip->key[0x9] = 0;
+                break;
+            case SDLK_d:
+                chip->key[0xA] = 0;
+                break;
+            case SDLK_f:
+                chip->key[0xB] = 0;
+                break;
+            case SDLK_y:
+                chip->key[0xC] = 0;
+                break;
+            case SDLK_x:
+                chip->key[0xD] = 0;
+                break;
+            case SDLK_c:
+                chip->key[0xE] = 0;
+                break;
+            case SDLK_v:
+                chip->key[0xF] = 0;
+                break;
+            default:
+                break;
+        }
+    }
+/*
+    for ( int i = 0 ; i < 16 ; i++ ) {
+        if (chip->key[i] == 1) printf("index pressed: %d\n", i);
+    }*/
 }
 
 // Function to draw the boolean array
@@ -249,11 +311,13 @@ void decode_and_execute(Chip_8 *chip) {
             switch (opcode & 0x000F) {
                 case 0x0000: // 0x00E0: Clears the screen
                     clear_display(chip);
+                    chip->draw_flag = true;
                     chip->PC += 2;
                     break;
                 case 0x000E: // 0x00EE: Returns from subroutine
                     chip->SP--;
                     chip->PC = chip->stack[chip->SP];
+                    chip->PC += 2;
                     break;
 
                 default:
@@ -291,20 +355,20 @@ void decode_and_execute(Chip_8 *chip) {
             break;
         case 0x8:
             switch (opcode & 0x000F) {
-                case 0x0000: // set Vx = Vy
-                    chip->V[(opcode & 0x0F00) >> 8] = chip->V[(opcode & 0x0F00) >> 4];
+                case 0x0000: // 8xy0: set Vx = Vy
+                    chip->V[(opcode & 0x0F00) >> 8] = chip->V[(opcode & 0x00F0) >> 4];
                     chip->PC += 2;
                     break;
                 case 0x0001: // set Vx = Vx OR Vy
-                    chip->V[(opcode & 0x0F00) >> 8] |= chip->V[(opcode & 0x0F00) >> 4];
+                    chip->V[(opcode & 0x0F00) >> 8] |= chip->V[(opcode & 0x00F0) >> 4];
                     chip->PC += 2;
                     break;
                 case 0x0002: // set Vx = Vx AND Vy
-                    chip->V[(opcode & 0x0F00) >> 8] &= chip->V[(opcode & 0x0F00) >> 4];
+                    chip->V[(opcode & 0x0F00) >> 8] &= chip->V[(opcode & 0x00F0) >> 4];
                     chip->PC += 2;
                     break;
                 case 0x0003: // set Vx = Vx XOR Vy
-                    chip->V[(opcode & 0x0F00) >> 8] ^= chip->V[(opcode & 0x0F00) >> 4];
+                    chip->V[(opcode & 0x0F00) >> 8] ^= chip->V[(opcode & 0x00F0) >> 4];
                     chip->PC += 2;
                     break;
                 case 0x0004: // set Vx = Vx + Vy, set VF = 1 if addition exceeds 8bits (carry bit)
@@ -315,6 +379,7 @@ void decode_and_execute(Chip_8 *chip) {
                 case 0x0005: // set Vx = Vx - Vy, set VF = 1 if not borrowed
                     chip->V[0xF] = chip->V[(opcode & 0x0F00) >> 8] > (0xFF - chip->V[(opcode & 0x00F0) >> 4]) ? 1 : 0;
                     chip->V[(opcode & 0x0F00) >> 8] -= chip->V[(opcode & 0x00F0) >> 4];
+
                     chip->PC += 2;
                     break;
                 case 0x0006: // set Vx = Vx >> 1, set VF = LSB
@@ -342,7 +407,7 @@ void decode_and_execute(Chip_8 *chip) {
             else chip->PC += 2;
             break;
         case 0xA: // Annn: set I to nnn (address)
-            chip->I = opcode % 0x0FFF;
+            chip->I = opcode & 0x0FFF;
             chip->PC += 2;
             break;
         case 0xB: // jump to nnn + V0
@@ -366,10 +431,19 @@ void decode_and_execute(Chip_8 *chip) {
                 for (int xline = 0; xline < 8; xline++) {
                     // check if current pixel is 1
                     if ((pixel & (0x80 >> xline)) != 0) {
-                        // check if pixel on display is set to 1
+                        /*// check if pixel on display is set to 1
                         if (chip->display[(x + xline + ((y + yline) * 64))] == 1)
                             chip->V[0xF] = 1; // register collision, set VF to 1
-                        chip->display[x + xline + ((y + yline) * 64)] ^= 1; // XOR pixel
+                        chip->display[x + xline + ((y + yline) * 64)] ^= 1; // XOR pixel*/
+                        int posX = (x + xline) % 64;
+                        int posY = (y + yline) % 32;
+                        int index = posX + posY * 64;
+
+                        if (chip->display[index] == 1) {
+                            // Collision detected
+                            chip->V[0xF] = 1;
+                        }
+                        chip->display[index] ^= 1;
                     }
                 }
             }
@@ -426,14 +500,15 @@ void decode_and_execute(Chip_8 *chip) {
                     chip->PC += 2;
                     break;
                 case 0x0055: // store V0...Vx in memory at I
-                    for (int i = 0; i < (opcode & 0x0F00) >> 2; i++) {
-                        memcpy(&chip->memory[chip->I + i], &chip->V[i], sizeof(uint8_t));
+                    for (int i = 0; i <= (opcode & 0x0F00) >> 8; i++) {
+                        memcpy(&chip->memory[chip->I + i], &chip->V[i], sizeof(uint8_t)); // TODO siehe 6 zeilen weiter unten
                     }
                     chip->PC += 2;
                     break;
                 case 0x0065: // store memory to V0...Vx starting at I
-                    for (int i = 0; i < (opcode & 0x0F00) >> 2; i++) {
-                        memcpy(&chip->V[i], &chip->memory[chip->I + i], sizeof(uint8_t));
+                    for (int i = 0; i <= (opcode & 0x0F00) >> 8; i++) {
+                        /*memcpy(&chip->V[i], &chip->memory[chip->I + i], sizeof(uint8_t));*/ // TODO gucken was besser ist
+                        chip->V[i] = chip->memory[chip->I + i];
                     }
                     chip->PC += 2;
                     break;
@@ -462,6 +537,32 @@ void emulate(Chip_8 *chip) {
     }
 }
 
+// Function to delay for a specified number of milliseconds
+void delay(int milliseconds) {
+    SDL_Delay(milliseconds);
+}
+
+// Function to handle the delay timer
+void handleDelayTimer(Chip_8 *chip, unsigned int *lastTimerTick) {
+    unsigned int currentTick = SDL_GetTicks();
+    if (currentTick - *lastTimerTick >= 1000 / TIMER_HZ) {
+        if (chip->delay_register > 0) {
+            chip->delay_register--;
+        }
+        *lastTimerTick = currentTick;
+    }
+}
+
+// Function to handle the emulation timer
+void handleEmulationTimer(Chip_8 *chip, unsigned int *lastEmulationTick) {
+    unsigned int currentTick = SDL_GetTicks();
+    if (currentTick - *lastEmulationTick >= 1000 / FRAME_RATE) {
+        // Emulate CHIP-8 at a fixed 60Hz rate
+        emulate(chip);
+        *lastEmulationTick = currentTick;
+    }
+}
+
 int main(int argc, char *argv[]) {
     printf("Test\n");
     fflush(stdout);
@@ -474,6 +575,11 @@ int main(int argc, char *argv[]) {
     // initialise chip-8
     Chip_8* chip = init_chip();
     load_program_to_memory(chip, argv[1]);
+
+    // timer
+    unsigned int lastFrameTick = SDL_GetTicks();
+    unsigned int lastTimerTick = SDL_GetTicks();
+    unsigned int lastEmulationTick = SDL_GetTicks();
 
     // Main loop
     bool quit = false;
@@ -488,7 +594,21 @@ int main(int argc, char *argv[]) {
             update_key_states(chip, e);
         }
 
-        emulate(chip);
+        // Handle delay timer
+        handleDelayTimer(chip, &lastTimerTick);
+        // Handle emulation timer (fixed 60Hz)
+        handleEmulationTimer(chip, &lastEmulationTick);
+
+        // Calculate time since the last frame
+        unsigned int currentTick = SDL_GetTicks();
+        unsigned int elapsedMilliseconds = currentTick - lastFrameTick;
+
+        // If less than 1/FRAME_RATE milliseconds have passed, delay to achieve the desired frame rate
+        if (elapsedMilliseconds < 1000 / FRAME_RATE) {
+            delay(1000 / FRAME_RATE - elapsedMilliseconds);
+        }
+
+        lastFrameTick = SDL_GetTicks();
 
         if (chip->draw_flag) {
             draw(&renderer, chip);
