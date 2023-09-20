@@ -252,8 +252,8 @@ void decode_and_execute(Chip_8 *chip) {
                     chip->PC += 2;
                     break;
                 case 0x000E: // 0x00EE: Returns from subroutine
-                    chip->PC = chip->stack[chip->SP];
                     chip->SP--;
+                    chip->PC = chip->stack[chip->SP];
                     break;
 
                 default:
