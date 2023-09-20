@@ -44,7 +44,7 @@ Chip_8* init_chip() {
     chip->opcode = 0;
     chip->I = 0;
     chip->SP = 0;
-    chip->PC = 0x200;
+    chip->PC = 0x200; // 0x200 is where the program is loaded to
     chip->draw_flag = false;
     memset(chip->memory, 0, sizeof(chip->memory));
 
@@ -84,7 +84,7 @@ int init_graphics(SDL_Window **window, SDL_Renderer **renderer) {
     }
 
     // initialise window
-    *window = SDL_CreateWindow("Boolean Array Display", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
+    *window = SDL_CreateWindow("Chip-8 Emulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
                                SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if (window == NULL) {
         printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -456,12 +456,15 @@ void emulate(Chip_8 *chip) {
     // ---update timers---
     if (chip->delay_register > 0) chip->delay_register--;
     if (chip->sound_register > 0) {
-        if (chip->sound_register == 1) printf("sound to be implemented"); // TODO: beep-sound to be implemented
+        if (chip->sound_register == 1) printf("sound start\n"); // TODO: beep-sound to be implemented
         chip->sound_register--;
+        if (chip->sound_register == 0) printf("sound stop\n");
     }
 }
 
 int main(int argc, char *argv[]) {
+    printf("Test\n");
+    fflush(stdout);
     if (argc != 2) return -1;
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
