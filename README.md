@@ -2,8 +2,8 @@
 > "CHIP-8 is an interpreted programming language, developed by Joseph Weisbecker made on his 1802 Microprocessor."
 
 This project is a CHIP-8 virtual machine that runs CHIP-8 programs. CHIP-8 is an assembler-like language using 2-byte-long opcodes. <br>
-This emulator can be thought of a processor with its own registers, memory, clock etc, designed for running CHIP-8 programs.
-Initially, CHIP-8 was made in the 1970s to program video games more easily and was later used to run video games on graphing calculators, especially those of Texas Instruments. 
+This emulator can be thought of as a processor with its own registers, memory, clock etc, designed for running CHIP-8 programs.
+Originally developed in the 1970s to make video games easier to program, CHIP-8 was later used to run video games on graphics computers, particularly those made by Texas Instruments.
 
 ---
 
