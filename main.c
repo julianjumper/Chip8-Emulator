@@ -3,11 +3,12 @@
 #include <stdbool.h>
 #include <SDL.h>
 #include <io.h>
+#include <time.h>
 
 // Define the dimensions of screen
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 320
-#define FRAME_RATE 60
+#define FRAME_RATE 1000
 #define TIMER_HZ 60
 
 typedef struct Chip_8 {
@@ -110,117 +111,67 @@ void close_graphics(SDL_Window *window, SDL_Renderer *renderer) {
 }
 
 void update_key_states(Chip_8 *chip, SDL_Event event) {
-    initialise_key_states(chip);
-    if (event.type == SDL_KEYDOWN) {
+    // initialise_key_states(chip);
+    //if (event.type == SDL_KEYDOWN) {
         SDL_Keycode keyPressed = event.key.keysym.sym;
 
         switch (keyPressed) {
             case SDLK_1:
-                chip->key[0x0] = 1;
+                chip->key[0] = 1;
                 break;
             case SDLK_2:
-                chip->key[0x1] = 1;
+                chip->key[1] = 1;
                 break;
             case SDLK_3:
-                chip->key[0x2] = 1;
+                chip->key[2] = 1;
                 break;
             case SDLK_4:
-                chip->key[0x3] = 1;
+                chip->key[3] = 1;
                 break;
             case SDLK_q:
-                chip->key[0x4] = 1;
+                chip->key[4] = 1;
                 break;
             case SDLK_w:
-                chip->key[0x5] = 1;
+                chip->key[5] = 1;
                 break;
             case SDLK_e:
-                chip->key[0x6] = 1;
+                chip->key[6] = 1;
                 break;
             case SDLK_r:
-                chip->key[0x7] = 1;
+                chip->key[7] = 1;
                 break;
             case SDLK_a:
-                chip->key[0x8] = 1;
+                chip->key[8] = 1;
                 break;
             case SDLK_s:
-                chip->key[0x9] = 1;
+                chip->key[9] = 1;
                 break;
             case SDLK_d:
-                chip->key[0xA] = 1;
+                chip->key[10] = 1;
                 break;
             case SDLK_f:
-                chip->key[0xB] = 1;
+                chip->key[11] = 1;
                 break;
             case SDLK_y:
-                chip->key[0xC] = 1;
+                chip->key[12] = 1;
                 break;
             case SDLK_x:
-                chip->key[0xD] = 1;
+                chip->key[13] = 1;
                 break;
             case SDLK_c:
-                chip->key[0xE] = 1;
+                chip->key[14] = 1;
                 break;
             case SDLK_v:
-                chip->key[0xF] = 1;
+                chip->key[15] = 1;
                 break;
             default:
+                printf("pressed 1\n");
                 break;
         }
-    }
-    else if (event.type == SDL_KEYUP) {
-        SDL_Keycode keyReleased = event.key.keysym.sym;
 
-        switch (keyReleased) {
-            case SDLK_1:
-                chip->key[0x0] = 0;
-                break;
-            case SDLK_2:
-                chip->key[0x1] = 0;
-                break;
-            case SDLK_3:
-                chip->key[0x2] = 0;
-                break;
-            case SDLK_4:
-                chip->key[0x3] = 0;
-                break;
-            case SDLK_q:
-                chip->key[0x4] = 0;
-                break;
-            case SDLK_w:
-                chip->key[0x5] = 0;
-                break;
-            case SDLK_e:
-                chip->key[0x6] = 0;
-                break;
-            case SDLK_r:
-                chip->key[0x7] = 0;
-                break;
-            case SDLK_a:
-                chip->key[0x8] = 0;
-                break;
-            case SDLK_s:
-                chip->key[0x9] = 0;
-                break;
-            case SDLK_d:
-                chip->key[0xA] = 0;
-                break;
-            case SDLK_f:
-                chip->key[0xB] = 0;
-                break;
-            case SDLK_y:
-                chip->key[0xC] = 0;
-                break;
-            case SDLK_x:
-                chip->key[0xD] = 0;
-                break;
-            case SDLK_c:
-                chip->key[0xE] = 0;
-                break;
-            case SDLK_v:
-                chip->key[0xF] = 0;
-                break;
-            default:
-                break;
+    if (event.type == SDL_KEYUP) {
+        for ( int i = 0; i < 16; i++ ) {
+            chip->key[i] = 0;
         }
     }
 /*
@@ -275,33 +226,6 @@ void clear_display(Chip_8 *chip) {
     for (int i = 0; i < 32 * 64; i++) {
         chip->display[i] = false;
     }
-}
-
-int wait_and_get_key_value(Chip_8 *chip) {
-    bool keyPressDetected = false;
-    SDL_Event event;
-
-    while (!keyPressDetected) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                keyPressDetected = true; // Quit the loop if the window is closed
-            } else if (event.type == SDL_KEYDOWN) {
-                // A key was pressed; store the key value
-                SDL_Keycode keyPressed = event.key.keysym.sym;
-
-                // Output the key value (for example, print it)
-                printf("Key Pressed: %s\n", SDL_GetKeyName(keyPressed));
-
-                // Store the key value and exit the loop
-                keyPressDetected = true;
-            }
-        }
-    }
-
-    for (int i = 0; i < 16; i++)
-        if (chip->key[i] == 1) return i;
-
-    return -1;
 }
 
 void decode_and_execute(Chip_8 *chip) {
@@ -372,29 +296,44 @@ void decode_and_execute(Chip_8 *chip) {
                     chip->PC += 2;
                     break;
                 case 0x0004: // set Vx = Vx + Vy, set VF = 1 if addition exceeds 8bits (carry bit)
-                    chip->V[0xF] = chip->V[(opcode & 0x00F0) >> 4] > (0xFF - chip->V[(opcode & 0x0F00) >> 8]) ? 1 : 0;
-                    chip->V[(opcode & 0x0F00) >> 8] += chip->V[(opcode & 0x00F0) >> 4];
+                {
+                    int Vx = chip->V[(chip->opcode & 0x0F00) >> 8];
+                    chip->V[(chip->opcode & 0x0F00) >> 8] += chip->V[(chip->opcode & 0x00F0) >> 4];
+                    chip->V[0xF] = chip->V[(opcode & 0x00F0) >> 4] + Vx > 255 ? 1 : 0;
+                }
                     chip->PC += 2;
                     break;
                 case 0x0005: // set Vx = Vx - Vy, set VF = 1 if not borrowed
-                    chip->V[0xF] = chip->V[(opcode & 0x0F00) >> 8] > (0xFF - chip->V[(opcode & 0x00F0) >> 4]) ? 1 : 0;
+                {
+                    int Vx = chip->V[(opcode & 0x0F00) >> 8];
                     chip->V[(opcode & 0x0F00) >> 8] -= chip->V[(opcode & 0x00F0) >> 4];
-
+                    chip->V[0xF] = Vx > chip->V[(opcode & 0x00F0) >> 4] ? 1 : 0;
+                }
                     chip->PC += 2;
                     break;
                 case 0x0006: // set Vx = Vx >> 1, set VF = LSB
-                    chip->V[0xF] = chip->V[(opcode & 0x0F00) >> 8] & 0x1;
+                {
+                    int Vx = chip->V[(opcode & 0x0F00) >> 8];
                     chip->V[(opcode & 0x0F00) >> 8] >>= 1;
+                    chip->V[0xF] = Vx & 0x1;
+                }
                     chip->PC += 2;
                     break;
                 case 0x0007: // set Vx = Vy - Vx, set VF = 1 if not borrowed
-                    chip->V[0xF] = chip->V[(opcode & 0x00F0) >> 4] > (0xFF - chip->V[(opcode & 0x0F00) >> 8]) ? 1 : 0;
+                {
+                    int Vx = chip->V[(opcode & 0x0F00) >> 8];
                     chip->V[(opcode & 0x0F00) >> 8] = chip->V[(opcode & 0x00F0) >> 4] - chip->V[(opcode & 0x0F00) >> 8];
+                    chip->V[0xF] = chip->V[(opcode & 0x00F0) >> 4] > Vx ? 1 : 0;
+                }
+
                     chip->PC += 2;
                     break;
                 case 0x000E: // set Vx = Vx << 1, set VF = MSB
-                    chip->V[0xF] = (chip->V[(opcode & 0x0F00) >> 8] >> 7) & 0x1;
+                {
+                    int Vx = chip->V[(opcode & 0x0F00) >> 8];
                     chip->V[(opcode & 0x0F00) >> 8] <<= 1;
+                    chip->V[0xF] = (Vx >> 7) & 0x1;
+                }
                     chip->PC += 2;
                     break;
                 default:
@@ -474,8 +413,13 @@ void decode_and_execute(Chip_8 *chip) {
                     chip->PC += 2;
                     break;
                 case 0x000A: // wait for key press, store key value in Vx
-                    chip->V[(opcode & 0x0F00) >> 8] = wait_and_get_key_value(chip);
-                    chip->PC += 2;
+                    for ( int i = 0; i < 16; i++ ) {
+                        if (chip->key[i] != 0) {
+                            chip->V[(opcode & 0x0F00) >> 8] = i;//chip->key[i];
+                            printf("got key\n");
+                            chip->PC += 2;
+                        }
+                    }
                     break;
                 case 0x0015: // set delay_register = Vx
                     chip->delay_register = chip->V[(opcode & 0x0F00) >> 8];
@@ -581,7 +525,10 @@ int main(int argc, char *argv[]) {
     unsigned int lastTimerTick = SDL_GetTicks();
     unsigned int lastEmulationTick = SDL_GetTicks();
 
-    // Main loop
+
+    struct timespec delay;    // Main loop
+    delay.tv_sec = 0;
+    delay.tv_nsec = 1700000; // 5000000;
     bool quit = false;
     SDL_Event e;
     while (!quit) {
@@ -589,31 +536,34 @@ int main(int argc, char *argv[]) {
             if (e.type == SDL_QUIT) {
                 quit = true;
             }
-
-            // ---update key states---
-            update_key_states(chip, e);
         }
 
+        // ---update key states---
+        update_key_states(chip, e);
+
         // Handle delay timer
-        handleDelayTimer(chip, &lastTimerTick);
+        //handleDelayTimer(chip, &lastTimerTick);
         // Handle emulation timer (fixed 60Hz)
-        handleEmulationTimer(chip, &lastEmulationTick);
+        //handleEmulationTimer(chip, &lastEmulationTick);
+
+        emulate(chip);
 
         // Calculate time since the last frame
         unsigned int currentTick = SDL_GetTicks();
         unsigned int elapsedMilliseconds = currentTick - lastFrameTick;
 
         // If less than 1/FRAME_RATE milliseconds have passed, delay to achieve the desired frame rate
-        if (elapsedMilliseconds < 1000 / FRAME_RATE) {
+        /*if (elapsedMilliseconds < 1000 / FRAME_RATE) {
             delay(1000 / FRAME_RATE - elapsedMilliseconds);
         }
 
         lastFrameTick = SDL_GetTicks();
-
+*/
         if (chip->draw_flag) {
             draw(&renderer, chip);
             chip->draw_flag = false;
         }
+        nanosleep(&delay, NULL);
 
     }
 
