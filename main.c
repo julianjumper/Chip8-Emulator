@@ -2,14 +2,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <SDL.h>
+#include <SDL_mixer.h>
 #include <io.h>
-#include <time.h>
+#include <math.h>
 
 // Define the dimensions of screen
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 320
-#define FRAME_RATE 1000
+// frequency for rendering and timers
+#define FRAME_RATE 400
 #define TIMER_HZ 60
+// audio-config
+#define RATE 300100
+#define AMPLITUDE 15000
+#define FREQUENCY 440.0 // 440 Hz == A
 
 typedef struct Chip_8 {
     uint8_t memory[4096]; // 4KB memory
@@ -33,6 +39,7 @@ typedef struct Chip_8 {
     // display - top-left (0,0) to bottom-right (63,31)
     bool display[64 * 32]; // pixels are either on or off
     bool draw_flag;
+    bool key_pressed;
 } Chip_8;
 
 void initialise_key_states(Chip_8 *chip) {
@@ -41,7 +48,7 @@ void initialise_key_states(Chip_8 *chip) {
     }
 }
 
-Chip_8* init_chip() {
+Chip_8 init_chip() {
     // allocate and initialise variables
     Chip_8 *chip = (Chip_8 *) calloc(1, sizeof(Chip_8));
     chip->opcode = 0;
@@ -49,6 +56,7 @@ Chip_8* init_chip() {
     chip->SP = 0;
     chip->PC = 0x200; // 0x200 is where the program is loaded to
     chip->draw_flag = false;
+    chip->key_pressed = false;
     memset(chip->memory, 0, sizeof(chip->memory));
 
     initialise_key_states(chip);
@@ -73,10 +81,10 @@ Chip_8* init_chip() {
                     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
                     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
             };
-    for(int i = 0; i < 80; i++)
-        chip->memory[i] = font_set[i];
+    for (int i = 0; i < 80; i++)
+        chip->memory[i] = font_set[i]; // loaded into beginning of memory
 
-    return chip;
+    return *chip;
 }
 
 int init_graphics(SDL_Window **window, SDL_Renderer **renderer) {
@@ -110,76 +118,6 @@ void close_graphics(SDL_Window *window, SDL_Renderer *renderer) {
     SDL_Quit();
 }
 
-void update_key_states(Chip_8 *chip, SDL_Event event) {
-    // initialise_key_states(chip);
-    //if (event.type == SDL_KEYDOWN) {
-        SDL_Keycode keyPressed = event.key.keysym.sym;
-
-        switch (keyPressed) {
-            case SDLK_1:
-                chip->key[0] = 1;
-                break;
-            case SDLK_2:
-                chip->key[1] = 1;
-                break;
-            case SDLK_3:
-                chip->key[2] = 1;
-                break;
-            case SDLK_4:
-                chip->key[3] = 1;
-                break;
-            case SDLK_q:
-                chip->key[4] = 1;
-                break;
-            case SDLK_w:
-                chip->key[5] = 1;
-                break;
-            case SDLK_e:
-                chip->key[6] = 1;
-                break;
-            case SDLK_r:
-                chip->key[7] = 1;
-                break;
-            case SDLK_a:
-                chip->key[8] = 1;
-                break;
-            case SDLK_s:
-                chip->key[9] = 1;
-                break;
-            case SDLK_d:
-                chip->key[10] = 1;
-                break;
-            case SDLK_f:
-                chip->key[11] = 1;
-                break;
-            case SDLK_y:
-                chip->key[12] = 1;
-                break;
-            case SDLK_x:
-                chip->key[13] = 1;
-                break;
-            case SDLK_c:
-                chip->key[14] = 1;
-                break;
-            case SDLK_v:
-                chip->key[15] = 1;
-                break;
-            default:
-                printf("pressed 1\n");
-                break;
-        }
-
-    if (event.type == SDL_KEYUP) {
-        for ( int i = 0; i < 16; i++ ) {
-            chip->key[i] = 0;
-        }
-    }
-/*
-    for ( int i = 0 ; i < 16 ; i++ ) {
-        if (chip->key[i] == 1) printf("index pressed: %d\n", i);
-    }*/
-}
-
 // Function to draw the boolean array
 void drawDisplay(SDL_Renderer *renderer, Chip_8 *chip) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -206,7 +144,6 @@ void drawDisplay(SDL_Renderer *renderer, Chip_8 *chip) {
 int load_program_to_memory(Chip_8 *chip, char *path) {
     FILE *file = fopen(path, "rb"); // it took me quite a while to figure out you need to use 'rb'
     if (!file) return -1;
-    // memcpy(&chip->memory[512], file, 3584);
     fread(&chip->memory[512], 1, 3584, file);
     fclose(file);
 }
@@ -394,12 +331,18 @@ void decode_and_execute(Chip_8 *chip) {
         case 0xE:
             switch (opcode & 0x00FF) {
                 case 0x009E: // skip next instruction if key with value of Vx is pressed
-                    if (chip->key[chip->V[(opcode & 0x0F00) >> 8]] != 0) chip->PC += 4;
-                    else chip->PC += 2;
+                    if (chip->key[chip->V[(opcode & 0x0F00) >> 8]] != 0) {
+                        chip->key_pressed = true;
+                        chip->PC += 4;
+                    } else chip->PC += 2;
                     break;
                 case 0x00A1: // skip next instruction if key with value of Vx is not pressed
                     if (chip->key[chip->V[(opcode & 0x0F00) >> 8]] == 0) chip->PC += 4;
-                    else chip->PC += 2;
+                    else {
+                        chip->key_pressed = true;
+                        chip->PC += 2;
+                    }
+                    chip->key_pressed = true;
                     break;
                 default:
                     printf("No such opcode: 0x%X\n", opcode);
@@ -413,11 +356,12 @@ void decode_and_execute(Chip_8 *chip) {
                     chip->PC += 2;
                     break;
                 case 0x000A: // wait for key press, store key value in Vx
-                    for ( int i = 0; i < 16; i++ ) {
+                    for (int i = 0; i < 16; i++) {
                         if (chip->key[i] != 0) {
-                            chip->V[(opcode & 0x0F00) >> 8] = i;//chip->key[i];
+                            chip->V[(opcode & 0x0F00) >> 8] = i;
                             printf("got key\n");
                             chip->PC += 2;
+                            chip->key_pressed = true;
                         }
                     }
                     break;
@@ -445,13 +389,13 @@ void decode_and_execute(Chip_8 *chip) {
                     break;
                 case 0x0055: // store V0...Vx in memory at I
                     for (int i = 0; i <= (opcode & 0x0F00) >> 8; i++) {
-                        memcpy(&chip->memory[chip->I + i], &chip->V[i], sizeof(uint8_t)); // TODO siehe 6 zeilen weiter unten
+                        memcpy(&chip->memory[chip->I + i], &chip->V[i],
+                               sizeof(uint8_t));
                     }
                     chip->PC += 2;
                     break;
                 case 0x0065: // store memory to V0...Vx starting at I
                     for (int i = 0; i <= (opcode & 0x0F00) >> 8; i++) {
-                        /*memcpy(&chip->V[i], &chip->memory[chip->I + i], sizeof(uint8_t));*/ // TODO gucken was besser ist
                         chip->V[i] = chip->memory[chip->I + i];
                     }
                     chip->PC += 2;
@@ -466,6 +410,64 @@ void decode_and_execute(Chip_8 *chip) {
     }
 }
 
+void update_key_states(Chip_8 *chip, SDL_Event event) {
+    SDL_Keycode keyPressed = event.key.keysym.sym;
+
+    switch (keyPressed) {
+        case SDLK_1:
+            chip->key[1] = 1;
+            break;
+        case SDLK_2:
+            chip->key[2] = 1;
+            break;
+        case SDLK_3:
+            chip->key[3] = 1;
+            break;
+        case SDLK_4:
+            chip->key[12] = 1;
+            break;
+        case SDLK_q:
+            chip->key[4] = 1;
+            break;
+        case SDLK_w:
+            chip->key[5] = 1;
+            break;
+        case SDLK_e:
+            chip->key[6] = 1;
+            break;
+        case SDLK_r:
+            chip->key[13] = 1;
+            break;
+        case SDLK_a:
+            chip->key[7] = 1;
+            break;
+        case SDLK_s:
+            chip->key[8] = 1;
+            break;
+        case SDLK_d:
+            chip->key[9] = 1;
+            break;
+        case SDLK_f:
+            chip->key[14] = 1;
+            break;
+        case SDLK_y:
+            chip->key[10] = 1;
+            break;
+        case SDLK_x:
+            chip->key[0] = 1;
+            break;
+        case SDLK_c:
+            chip->key[11] = 1;
+            break;
+        case SDLK_v:
+            chip->key[15] = 1;
+            break;
+        default:
+            printf("pressed 1\n");
+            break;
+    }
+}
+
 void emulate(Chip_8 *chip) {
     // ---fetch opcode---
     // the opcode is two bytes long, the memory-array contains one byte-addresses each. We concatenate both bytes:
@@ -473,32 +475,32 @@ void emulate(Chip_8 *chip) {
     // ---decode & execute opcode---
     decode_and_execute(chip);
     // ---update timers---
-    if (chip->delay_register > 0) chip->delay_register--;
+    /*if (chip->delay_register > 0) chip->delay_register--;
     if (chip->sound_register > 0) {
         if (chip->sound_register == 1) printf("sound start\n"); // TODO: beep-sound to be implemented
         chip->sound_register--;
         if (chip->sound_register == 0) printf("sound stop\n");
-    }
+    }*/
 }
 
-// Function to delay for a specified number of milliseconds
-void delay(int milliseconds) {
-    SDL_Delay(milliseconds);
-}
-
-// Function to handle the delay timer
-void handleDelayTimer(Chip_8 *chip, unsigned int *lastTimerTick) {
+// delay_timer usually runs on 60 Hz (TIMER_HZ)
+void delay_timer(Chip_8 *chip, unsigned int *lastTimerTick, SDL_AudioDeviceID audio) {
     unsigned int currentTick = SDL_GetTicks();
     if (currentTick - *lastTimerTick >= 1000 / TIMER_HZ) {
         if (chip->delay_register > 0) {
             chip->delay_register--;
         }
+        if (chip->sound_register > 0) {
+            SDL_PauseAudioDevice(audio, 0);
+            chip->sound_register--;
+            if (chip->sound_register == 0) SDL_PauseAudioDevice(audio, 1);
+        }
         *lastTimerTick = currentTick;
     }
 }
 
-// Function to handle the emulation timer
-void handleEmulationTimer(Chip_8 *chip, unsigned int *lastEmulationTick) {
+// emulation timer runs on higher frequencies (most games use 400-800Hz, I use 400 Hz in FRAME_RATE)
+void emulation_timer(Chip_8 *chip, unsigned int *lastEmulationTick) {
     unsigned int currentTick = SDL_GetTicks();
     if (currentTick - *lastEmulationTick >= 1000 / FRAME_RATE) {
         // Emulate CHIP-8 at a fixed 60Hz rate
@@ -507,66 +509,105 @@ void handleEmulationTimer(Chip_8 *chip, unsigned int *lastEmulationTick) {
     }
 }
 
+// creates the sound, found it on stackoverflow :)
+void audioCallback(void *userdata, Uint8 *stream, int len) {
+    // Cast the stream to a 16-bit signed integer pointer
+    Sint16 *audioData = (Sint16 *) stream;
+
+    // Calculate the number of samples in the buffer
+    int numSamples = len / sizeof(Sint16);
+
+    // Generate the audio data for the tone
+    for (int i = 0; i < numSamples; i++) {
+        // Calculate the sine wave value for the current sample
+        double t = (double) i / RATE;
+        double waveValue = AMPLITUDE * sin(2 * M_PI * FREQUENCY * t);
+
+        // Convert the value to a 16-bit signed integer and store it in the buffer
+        audioData[i] = (Sint16) waveValue;
+    }
+}
+
+// initialise SDL_mixer
+SDL_AudioDeviceID init_audio() {
+    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+        printf("SDL initialization failed: %s\n", SDL_GetError());
+        return 2;
+    }
+    SDL_AudioSpec settings, received_settings;
+    SDL_zero(settings);
+    settings.freq = RATE;
+    settings.format = AUDIO_S16SYS; // 16-bit signed, little-endian
+    settings.channels = 1;          // mono
+    settings.samples = 1024;        // buffer size
+    settings.callback = audioCallback;
+
+    // initialise audio
+    SDL_AudioDeviceID audio_id = SDL_OpenAudioDevice(NULL, 0, &settings, &received_settings, 0);
+    return audio_id;
+}
+
 int main(int argc, char *argv[]) {
-    printf("Test\n");
-    fflush(stdout);
-    if (argc != 2) return -1;
+    if (argc != 2) return -1; // return if no rom is provided
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
 
     if (init_graphics(&window, &renderer) == 1) return 1;
+    SDL_AudioDeviceID audio_id = init_audio();
+
+    // failed to initialise audio
+    if (audio_id == 0) {
+        SDL_Quit();
+        return 2;
+    }
 
     // initialise chip-8
-    Chip_8* chip = init_chip();
-    load_program_to_memory(chip, argv[1]);
+    Chip_8 chip = init_chip();
+    load_program_to_memory(&chip, argv[1]);
 
     // timer
-    unsigned int lastFrameTick = SDL_GetTicks();
     unsigned int lastTimerTick = SDL_GetTicks();
     unsigned int lastEmulationTick = SDL_GetTicks();
 
-
-    struct timespec delay;    // Main loop
-    delay.tv_sec = 0;
-    delay.tv_nsec = 1700000; // 5000000;
     bool quit = false;
+    bool key_released = false;
     SDL_Event e;
     while (!quit) {
+        // handle quitting and keystrokes
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
+            } else if (e.type == SDL_KEYDOWN) {
+                update_key_states(&chip, e);
+            } else if (e.type == SDL_KEYUP) {
+                key_released = true;
             }
         }
 
-        // ---update key states---
-        update_key_states(chip, e);
+        // delay timer decremented
+        delay_timer(&chip, &lastTimerTick, audio_id);
+        // handle emulation
+        emulation_timer(&chip, &lastEmulationTick);
 
-        // Handle delay timer
-        //handleDelayTimer(chip, &lastTimerTick);
-        // Handle emulation timer (fixed 60Hz)
-        //handleEmulationTimer(chip, &lastEmulationTick);
-
-        emulate(chip);
-
-        // Calculate time since the last frame
-        unsigned int currentTick = SDL_GetTicks();
-        unsigned int elapsedMilliseconds = currentTick - lastFrameTick;
-
-        // If less than 1/FRAME_RATE milliseconds have passed, delay to achieve the desired frame rate
-        /*if (elapsedMilliseconds < 1000 / FRAME_RATE) {
-            delay(1000 / FRAME_RATE - elapsedMilliseconds);
+        // draw to screen
+        if (chip.draw_flag) {
+            draw(&renderer, &chip);
+            chip.draw_flag = false;
         }
 
-        lastFrameTick = SDL_GetTicks();
-*/
-        if (chip->draw_flag) {
-            draw(&renderer, chip);
-            chip->draw_flag = false;
+        // handle keystrokes
+        if (chip.key_pressed && key_released) {
+            for (int i = 0; i < 16; i++) {
+                chip.key[i] = 0;
+            }
+            chip.key_pressed = false;
+            key_released = false;
         }
-        nanosleep(&delay, NULL);
 
     }
 
+    // clean up everything and close
+    SDL_CloseAudioDevice(audio_id);
     close_graphics(window, renderer);
 
     return 0;
