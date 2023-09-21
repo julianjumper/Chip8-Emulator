@@ -1,4 +1,4 @@
-# `Chip8-Emulator` - first attemps with emulation
+# `Chip8-Emulator` - first attempts with emulation
 > "CHIP-8 is an interpreted programming language, developed by Joseph Weisbecker made on his 1802 Microprocessor."
 
 This project is a CHIP-8 virtual machine that runs CHIP-8 programs. CHIP-8 is an assembler-like language using 2-byte-long opcodes. <br>
