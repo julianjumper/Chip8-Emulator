@@ -389,14 +389,16 @@ void decode_and_execute(Chip_8 *chip) {
                     break;
                 case 0x0055: // store V0...Vx in memory at I
                     for (int i = 0; i <= (opcode & 0x0F00) >> 8; i++) {
-                        memcpy(&chip->memory[chip->I + i], &chip->V[i],
-                               sizeof(uint8_t));
+                        //memcpy(&chip->memory[chip->I + i], &chip->V[i], sizeof(uint8_t));
+                        chip->memory[chip->I] = chip->V[i];
+                        chip->I += 1;
                     }
                     chip->PC += 2;
                     break;
                 case 0x0065: // store memory to V0...Vx starting at I
                     for (int i = 0; i <= (opcode & 0x0F00) >> 8; i++) {
-                        chip->V[i] = chip->memory[chip->I + i];
+                        chip->V[i] = chip->memory[chip->I];
+                        chip->I += 1;
                     }
                     chip->PC += 2;
                     break;
