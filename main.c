@@ -144,8 +144,10 @@ void drawDisplay(SDL_Renderer *renderer, Chip_8 *chip) {
 int load_program_to_memory(Chip_8 *chip, char *path) {
     FILE *file = fopen(path, "rb"); // it took me quite a while to figure out you need to use 'rb'
     if (!file) return -1;
-    fread(&chip->memory[512], 1, 3584, file);
+    size_t read = fread(&chip->memory[512], 1, 3584, file);
     fclose(file);
+    if (read == 0) return -1;
+    return 0;
 }
 
 void draw(SDL_Renderer **renderer, Chip_8 *chip) {
@@ -416,19 +418,23 @@ void update_key_states(Chip_8 *chip, SDL_Event event) {
     SDL_Keycode keyPressed = event.key.keysym.sym;
 
     switch (keyPressed) {
-        case SDLK_1:
+        case SDLK_UP:
+        case SDLK_1: // up
             chip->key[1] = 1;
             break;
         case SDLK_2:
             chip->key[2] = 1;
             break;
-        case SDLK_3:
+        case SDLK_LEFT:
+        case SDLK_3: // left
             chip->key[3] = 1;
             break;
-        case SDLK_4:
+        case SDLK_RIGHT:
+        case SDLK_4: // right
             chip->key[12] = 1;
             break;
-        case SDLK_q:
+        case SDLK_DOWN:
+        case SDLK_q: // down
             chip->key[4] = 1;
             break;
         case SDLK_w:
@@ -440,18 +446,22 @@ void update_key_states(Chip_8 *chip, SDL_Event event) {
         case SDLK_r:
             chip->key[13] = 1;
             break;
+        case SDLK_i: // second player up
         case SDLK_a:
             chip->key[7] = 1;
             break;
         case SDLK_s:
             chip->key[8] = 1;
             break;
+        case SDLK_j: // second player left
         case SDLK_d:
             chip->key[9] = 1;
             break;
+        case SDLK_l: // second player right
         case SDLK_f:
             chip->key[14] = 1;
             break;
+        case SDLK_k: // second player down
         case SDLK_y:
             chip->key[10] = 1;
             break;
@@ -465,7 +475,7 @@ void update_key_states(Chip_8 *chip, SDL_Event event) {
             chip->key[15] = 1;
             break;
         default:
-            printf("pressed 1\n");
+            printf("pressed key not mapped\n");
             break;
     }
 }
@@ -476,13 +486,6 @@ void emulate(Chip_8 *chip) {
     chip->opcode = chip->memory[chip->PC] << 8 | chip->memory[chip->PC + 1];
     // ---decode & execute opcode---
     decode_and_execute(chip);
-    // ---update timers---
-    /*if (chip->delay_register > 0) chip->delay_register--;
-    if (chip->sound_register > 0) {
-        if (chip->sound_register == 1) printf("sound start\n"); // TODO: beep-sound to be implemented
-        chip->sound_register--;
-        if (chip->sound_register == 0) printf("sound stop\n");
-    }*/
 }
 
 // delay_timer usually runs on 60 Hz (TIMER_HZ)
@@ -565,7 +568,7 @@ int main(int argc, char *argv[]) {
 
     // initialise chip-8
     Chip_8 chip = init_chip();
-    load_program_to_memory(&chip, argv[1]);
+    if (load_program_to_memory(&chip, argv[1]) == -1) return -3;
 
     // timer
     unsigned int lastTimerTick = SDL_GetTicks();
