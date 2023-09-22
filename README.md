@@ -10,6 +10,7 @@ Originally developed in the 1970s to make video games easier to program, CHIP-8 
 ## Installation
 Just install the package, unzip the archive and open a program (any `.ch8`-file) by drag-and-dropping it onto the `Chip-8.exe`.
 ![screenrecording pong](https://github.com/jmjumper/Chip8-Emulator/blob/master/screen/chip8.gif)
+This flicker effect you might notice in this example is characteristic of CHIP-8. Pixels that are updated are actually XORed, which causes them to be constantly turned on and off.
 
 --- 
 
@@ -29,7 +30,15 @@ Just install the package, unzip the archive and open a program (any `.ch8`-file)
 - left/right: `W`/`E`
 - faster: `A`
 ### More
-more can be found at https://github.com/kripod/chip8-roms
+more can be found at https://github.com/kripod/chip8-roms. The keypad for this emulator has the following layout: <br>
+`1 2 3 4` <br>
+`Q W E R` <br>
+`A S D F` <br>
+`Y X C V` <br>
+
+so it has 16 keys in total. <br>
+The `up-arrow`-key is mapped to `1`, `left-arrow`-key to `3`, `right-arrow`-key to `4`, `down-arrow`-key to `Q`. <br>
+Each game uses its own key-bindings which have to be figured out individually. 
 
 ---
 
